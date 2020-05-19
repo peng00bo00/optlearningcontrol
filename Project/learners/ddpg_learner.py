@@ -24,12 +24,13 @@ class DDPGLearner:
         self.maximize = maximize
         self.batch_size = batch_size
     
-    def sample_trail(self, policy, add_to_buffer=False, train=False):
+    def sample_trail(self, policy, episode_length=1000, add_to_buffer=False, train=False):
         """
         Sample a trail with given policy.
 
         Args:
             policy: the policy function at each time step;
+            episode_length: the maximum length of each episode;
             add_to_buffer: whether to add experience to replay buffer;
             train: whether to train the agent at each time step.
         
@@ -45,8 +46,9 @@ class DDPGLearner:
         costs = []
         traj = [x]
         us = []
+        i = 0
 
-        while not terminal:
+        while i < episode_length:
             u = policy(x)
 
             x_next, cost, terminal, _ = self.env.step(u)
@@ -67,18 +69,24 @@ class DDPGLearner:
             costs.append(cost)
             traj.append(x_next)
             us.append(u)
+
+            i += 1
+
+            if terminal:
+                break
         
         return costs, traj, us
 
     
-    def train(self, presample=10, noise_scale=1.0, episodes=100, interval=10, plot=None, save_path=None, save_name="DDPG"):
+    def train(self, presample=10, noise=None, episodes=1000, episode_length=1000, interval=10, plot=None, save_path=None, save_name="DDPG"):
         """
         Start the training process.
 
         Args:
             presample: the number of presampling (with random policy);
-            noise_scale: the std of gaussian noises:
+            noise: the noise function;
             episodes: the number of training episodes;
+            episode_length: the maximum length of each episode;
             interval: the interval for test current agent;
             plot: a plot function;
             save_path: path to save model;
@@ -88,29 +96,34 @@ class DDPGLearner:
             hist: a dictionary contains training history
         """
 
-        n_actions = self.env.action_space.shape[0]
+        # n_actions = self.env.action_space.shape[0]
 
         print("Start pre-sampling with random policy...")
         for t in range(presample):
-            random_policy = lambda x: 2*noise_scale*np.random.rand(n_actions) - noise_scale
-            self.sample_trail(random_policy, add_to_buffer=True)
+            random_policy = lambda x: self.env.action_space.sample()
+            self.sample_trail(random_policy, episode_length, add_to_buffer=True)
             
         print(f"Pre-sampling finished!")
 
-        hist = {"costs": [], "states": [], "controls": []}
+        hist = {"costs": [], "states": [], "controls": [], "episode length": []}
         for t in range(episodes):
-            noise_policy = lambda x: self.agent(x) + np.random.normal(0, noise_scale*np.exp(-t), n_actions)
-            self.sample_trail(noise_policy, add_to_buffer=True, train=True)
+            policy = self.agent
+            ## add noise to the policy for exploration
+            if noise is not None:
+                noise.reset()
+                policy = lambda x: self.agent(x) + noise()
+            self.sample_trail(policy, episode_length, add_to_buffer=True, train=True)
             
             ## report every interval steps
             if t % interval == 0:
-                costs, traj, us = self.sample_trail(self.agent)
+                costs, traj, us = self.sample_trail(self.agent.predict, episode_length)
                 ## add trajectory to hist
                 hist["costs"].append(costs)
                 hist["states"].append(traj)
                 hist["controls"].append(us)
+                hist["episode length"].append(len(us))
 
-                print(f"Episode: {t}, Mean Cost: {np.mean(costs)}")
+                print(f"Episode: {t}, Episode Length: {len(us)}, Mean Cost: {np.mean(costs)}")
 
                 if plot is not None:
                     plot(traj=traj, us=us, costs=costs)

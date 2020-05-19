@@ -15,7 +15,7 @@ class DDPGAgent(BaseAgent):
         self.alpha = alpha
 
         self.q_optim = tf.keras.optimizers.Adam(lr=q_lr)
-        self.p_optim = tf.keras.optimizers.Adam(lr=p_lr)
+        self.p_optim = tf.keras.optimizers.Adam(lr=p_lr, clipnorm=5.)
 
         self.target_q_network = tf.keras.models.clone_model(self.q_network)
         self.target_p_network = tf.keras.models.clone_model(self.p_network)
@@ -67,10 +67,12 @@ class DDPGAgent(BaseAgent):
 
         ## update q-network
         with tf.GradientTape() as tape:
-            q = self.q_network(tf.concat([xs, us], 1))
+            # q = self.q_network(tf.concat([xs, us], 1))
+            q = self.q_network([xs, us])
             q = tf.reshape(q, [-1])
             u_nexts = self.target_p_network(x_nexts)
-            q_= self.target_q_network(tf.concat([x_nexts, u_nexts], 1))
+            # q_= self.target_q_network(tf.concat([x_nexts, u_nexts], 1))
+            q_= self.target_q_network([x_nexts, u_nexts])
             q_= tf.reshape(q_, [-1])
             q_target = cs + self.alpha * q_ * (1-terminals)
 
@@ -81,7 +83,8 @@ class DDPGAgent(BaseAgent):
 
         ## update p-network
         with tf.GradientTape() as tape:
-            J = self.q_network(tf.concat([xs, self.p_network(xs)], 1))
+            # J = self.q_network(tf.concat([xs, self.p_network(xs)], 1))
+            J = self.q_network([xs, self.p_network(xs)])
             J = tf.reduce_mean(J)
         
         p_grads = tape.gradient(J, self.p_network.trainable_weights)

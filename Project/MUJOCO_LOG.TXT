@@ -1,0 +1,12 @@
+Tue May  5 19:03:40 2020
+ERROR: GLEW initalization error: Missing GL version
+
+Tue May  5 19:04:13 2020
+ERROR: GLEW initalization error: Missing GL version
+
+Tue May  5 19:04:51 2020
+ERROR: GLEW initalization error: Missing GL version
+
+Tue May  5 19:07:55 2020
+ERROR: GLEW initalization error: Missing GL version
+

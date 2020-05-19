@@ -19,9 +19,8 @@ n_actions = env.action_space.shape[0]
 
 q_network = build_network(n_states+n_actions, 1, 2, 256)
 p_network = build_network(n_states, n_actions, 2, 256, (-2, 2))
-pg = DDPGAgent(q_network, p_network, 0.99, 0.01, 1e-3, 1e-3)
+pg = DDPGAgent(q_network, p_network, 0.99, 0.01, 1e-3, 1e-4)
 
 learner = DDPGLearner(env, buffer, pg, maximize=True, batch_size=128)
 hist = learner.train(presample=10, noise_scale=2.0, episodes=10001, interval=10, plot=None, save_path="./", save_name="pendulum")
 
-sys.path.pop()
